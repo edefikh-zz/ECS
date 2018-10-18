@@ -4,4 +4,5 @@
 - Userdata is fed for setup of NewRelic and SumoLogic for logging allowing to capture key log files
 - The Task definition and service definition is defined allowing application to digest docker images from ECR
 - RDFS database is setup for Postgress
+- includes LAMBDA function for setting hostnames
 - Finally in the output you get ECS URL for management
