@@ -8,6 +8,7 @@ Metadata:
         default: 'Existing VPCs parameters'
       Parameters:
         - VPCID
+        - VPCCidr
         - SubnetAPublic
         - SubnetBPublic
         - SubnetAPrivate
@@ -21,7 +22,6 @@ Metadata:
       - MaxSize
       - MinSize
       - DesiredSize
-      - NameTag
     - Label:
         default: 'Cluster Parameters'
       Parameters:
@@ -31,17 +31,31 @@ Metadata:
       - SubnetsReach
       - ContainerMaxCPU
       - ContainerMaxMemory
+      - DrainingTimeoutInSeconds
+    - Label:
+        default: 'Auto Scaling Parameters'
+      Parameters:
       - MaxCapacity
       - MinCapacity
       - DesiredCapacity
-      - LogsRetentionInDays
-      - DrainingTimeoutInSeconds
-      # - ContainerShortageThreshold
-      # - ContainerExcessThreshold
+      - MetricName
+      - Threshold
+      - Statistic
+      - PeriodsIncrease
+      - PeriodsDecrease
+      - ContainerShortageThreshold
+      - ContainerExcessThreshold
+    - Label:
+        default: 'Docker Image Parameters'
+      Parameters:
+      - S3PathToImage
+      - ImageName
     - Label:
         default: 'RDS Parameters'
       Parameters:
+      - CreateRDS
       - DataBaseInstanceType
+      - DataBaseInstanceName
       - DataBaseName
       - DataBaseUser
       - DataBasePassword
@@ -49,7 +63,7 @@ Metadata:
         default: 'Load Balancer Parameters'
       Parameters:
       - LoadBalancerScheme
-      - LoadBalancerCertificateArn
+      - LoadBalancerCertificate
     - Label:
         default: 'Logs'
       Parameters:
@@ -57,20 +71,47 @@ Metadata:
       - SumoLogicKey
       - SumoLogicID
 Parameters:
+  CreateRDS:
+    Description: 'Should stack create RDS DataBase?'
+    Type: String
+    AllowedValues: [yes, no]
+  MetricName:
+    Description: 'The name of the metric associated with the alarm.'
+    Type: String
+    Default: 'MemoryUtilization'
+    AllowedValues: [CPUUtilization, MemoryUtilization]
+  Threshold:
+    Description: 'The value against which the specified statistic is compared. Specified per one container.'
+    Type: String
+    Default: '70'
+  PeriodsIncrease:
+    Description: 'The time over which the specified statistic is applied for adding extra task. Specify time in seconds, in multiples of 60'
+    Type: String
+    Default: '60'
+    AllowedValues: [60,120,240,300,360,420,480,540,600]
+  PeriodsDecrease:
+    Description: 'The time over which the specified statistic is applied for removing extra task. Specify time in seconds, in multiples of 60'
+    Type: String
+    Default: '120'
+    AllowedValues: [60,120,240,300,360,420,480,540,600]
+  S3PathToImage:
+    Description: 'Path to docker image at S3 bucker like: Bucketname/Folder/.../Image_Name. Dont need it if use DockerHub`s image'
+    Type: String
+    Default: ''
+  ImageName:
+    Description: 'Specify image name at DockerHub, leave this field empty if specified S3`s image'
+    Type: String
+    Default: 'nginx'
   AppName:
     Description: 'Aplication name.'
     Type: String
-    Default: 'profile'
+    Default: 'app'
   ApplicationPort:
     Description: 'Application Port inside continer.'
     Type: String
-    Default: '3000'
-  Environment:
-    Description: 'Environment- prod, test etc.'
-    Type: String
-    Default: production
+    Default: '80'
   DataBaseInstanceType:
-    Description: 'The instance type of the Data base instances.'
+    Description: 'The instance type of the Database instances.'
     Type: String
     Default: 'db.t2.micro'  #'db.t2.medium'
     AllowedValues: [db.t1.micro, db.m1.small, db.m1.medium, db.m1.large, db.m1.xlarge,
@@ -79,99 +120,100 @@ Parameters:
       db.r3.large, db.r3.xlarge, db.r3.2xlarge, db.r3.4xlarge, db.r3.8xlarge, db.m2.xlarge,
       db.m2.2xlarge, db.m2.4xlarge, db.cr1.8xlarge, db.t2.micro, db.t2.small, db.t2.medium,
       db.t2.large]
+  DataBaseInstanceName:
+    Description: 'The Database instance name. Must contain only letters, digits, or hyphens. If left it empty - name will be ${Environment}-${AppName}-master'
+    Type: String
+    Default: ''
   DataBaseName:
-    Description: 'The Data base name. If let it empty - name will be {env}_{app}_master'
+    Description: 'The Database name. If left it empty - name will be {env}_{app}_master'
     Type: String
     Default: ''
   DataBaseUser:
-    Description: 'The Data base username. If let it empty - username will be {env}_{app}_master_user'
+    Description: 'The Database username. If left it empty - username will be {env}_{app}_master_user'
     Type: String
     Default: ''
   DataBasePassword:
-    Description: 'The DataBasePassword.'
+    Description: 'The DataBase password.'
     Type: String
     Default: ''
   Environment:
     Description: 'Environment- prod, test etc.'
     Type: String
-    Default: production
-  NameTag:
-    Description: 'Name tag for EC2 instances.'
-    Type: String
-    Default: ""
+    Default: 'production'
   VPCID:
     Description: 'ID of existing VPC'
-    Type: String
+    Type: AWS::EC2::VPC::Id
     Default: 'vpc-99dcb6fd'
+  VPCCidr:
+    Description: 'CIDR of existing VPC'
+    Type: String
+    Default: '10.0.24.0/22'
   SubnetAPublic:
     Description: 'ID of first existing public subnet'
-    Type: String
-    Default: 'subnet-c8774d81'
+    Type: AWS::EC2::Subnet::Id
+    Default: 'subnet-xxxx'
   SubnetBPublic:
     Description: 'ID of second existing public subnet'
-    Type: String
-    Default: 'subnet-89d158b5'
+    Type: AWS::EC2::Subnet::Id
+    Default: 'subnet-xxxx'
   SubnetAPrivate:
     Description: 'ID of first existing private subnet'
-    Type: String
-    Default: 'subnet-21d40e57'
+    Type: AWS::EC2::Subnet::Id
+    Default: 'subnet-xxxx'
   SubnetBPrivate:
     Description: 'ID of second existing private subnet'
-    Type: String
-    Default: 'subnet-869b1aba'
+    Type: AWS::EC2::Subnet::Id
+    Default: 'subnet-xxxx'
   SumoLogicID:
     Description: 'Optional SumoLogic Access ID'
     Type: String
-    Default: 'subCL9cre2Vz0O'
+    Default: 'xxxx'
   SumoLogicKey:
     Description: 'Optional SumoLogic Access Key'
     Type: String
-    Default: 'o1687QB5e56uKciIAM6V3frc3s7JMnlFniXrebC95JIuKUGwu8cg5qaaW75UPLE0'
-  ParentAuthProxyStack:
-    Description: 'Optional stack name of parent auth proxy stack based on security/auth-proxy-*.yaml template.'
-    Type: String
-    Default: ''
-  ParentAlertStack:
-    Description: 'Optional but recommended stack name of parent alert stack based on operations/alert.yaml template.'
-    Type: String
-    Default: ''
+    Default: 'xxx'
   KeyName:
     Description: 'Optional key pair of the ec2-user to establish a SSH connection to the EC2 instances of the ECS cluster.'
-    Type: String
-    Default: 'webteam'
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: 'xxxx'
   IAMUserSSHAccess:
-    Description: 'Synchronize public keys of IAM users to enable personalized SSH access (Doc: https://cloudonaut.io/manage-aws-ec2-ssh-access-with-iam/).'
+    Description: 'Synchronize public keys of IAM users to enable personalized SSH access '
     Type: String
     Default: false
     AllowedValues:
-    - true
-    - false
+    - 'true'
+    - 'false'
   NewRelicLicenseKey:
     Description: 'Optional New Relic License Key will install the New Relic Servers for Linux agent.'
     Type: String
-    Default: 'f5883fdf606a1e749f07c39d827a6d84a05d8232'
+    Default: 'xxxxxxx'
   SubnetsReach:
     Description: 'Should the cluster have direct access to the Internet or do you prefer private subnets with NAT?'
     Type: String
-    Default: Public
+    Default: 'Public'
     AllowedValues:
-    - Public
-    - Private
+    - 'Public'
+    - 'Private'
   LoadBalancerScheme:
     Description: 'Indicates whether the load balancer in front of the ECS cluster is internet-facing or internal.'
     Type: String
     Default: 'internet-facing'
     AllowedValues:
     - 'internet-facing'
-    - internal
-  LoadBalancerCertificateArn:
-    Description: 'Optional Amazon Resource Name (ARN) of the certificate to associate with the load balancer.'
+    - 'internal'
+  LoadBalancerCertificate:
+    Description: 'Optional  the SSL certificate to associate with the load balancer.'
     Type: String
     Default: ''
+    AllowedValues:
+    - ''
+    - '*.cyberexposure.com'
+    - '*.xxx.com'
+    - '*.xxx.com'
   InstanceType:
     Description: 'The instance type of the EC2 instances of the ECS cluster.'
     Type: String
-    Default: t2.micro
+    Default: 't2.micro'
     AllowedValues: [t1.micro, t2.nano, t2.micro, t2.small, t2.medium, t2.large, m1.small,
       m1.medium, m1.large, m1.xlarge, m2.xlarge, m2.2xlarge, m2.4xlarge, m3.medium,
       m3.large, m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge,
@@ -180,72 +222,67 @@ Parameters:
       g2.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge, r3.8xlarge, i2.xlarge,
       i2.2xlarge, i2.4xlarge, i2.8xlarge, d2.xlarge, d2.2xlarge, d2.4xlarge, d2.8xlarge,
       hi1.4xlarge, hs1.8xlarge, cr1.8xlarge, cc2.8xlarge, cg1.4xlarge]
-  LogsRetentionInDays:
-    Description: 'Specifies the number of days you want to retain log events in the specified log group.'
-    Type: Number
-    Default: 14
-    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
   MaxSize:
     Description: 'The maximum size of the Auto Scaling group (EC2).'
     Type: Number
-    Default: 4
+    Default: '4'
     ConstraintDescription: 'Must be >= 1'
-    MinValue: 2
+    MinValue: '2'
   MinSize:
     Description: 'The minimum size of the Auto Scaling group (EC2).'
     Type: Number
-    Default: 2
+    Default: '2'
     ConstraintDescription: 'Must be >= 1'
-    MinValue: 1
+    MinValue: '1'
   DesiredSize:
     Description: 'The desired start size of the Auto Scaling group (EC2).'
     Type: Number
-    Default: 2
+    Default: '2'
     ConstraintDescription: 'Must be >= 1'
-    MinValue: 1
+    MinValue: '1'
   MinCapacity:
     Description: 'The desired minimum capacity of the tasks at Auto Scaling group.'
     Type: Number
-    Default: 2
-    MinValue: 0
+    Default: '1'
+    MinValue: '0'
   MaxCapacity:
     Description: 'The desired maximum capacity of the tasks at Auto Scaling group.'
     Type: Number
-    Default: 4
-    MinValue: 0
+    Default: '4'
+    MinValue: '0'
   DesiredCapacity:
     Description: 'The desired capacity of tasks at Auto Scaling group.'
     Type: Number
-    Default: 2
+    Default: '2'
     ConstraintDescription: 'Must be >= 1'
-    MinValue: 1
+    MinValue: '1'
   DrainingTimeoutInSeconds:
     Description: 'Maximum time in seconds an EC2 instance waits when terminating until all containers are moved to another EC2 instance (draining).'
     Type: Number
-    Default: 60
+    Default: '60'
     ConstraintDescription: 'Must be in the range [60-7200]'
-    MinValue: 60
-    MaxValue: 7200
+    MinValue: '60'
+    MaxValue: '7200'
   ContainerMaxCPU:
     Description: 'The maximum number of cpu reservation per container that you plan to run on this cluster. A container instance has 1,024 CPU units for every CPU core.'
     Type: Number
-    Default: 128
+    Default: '128'
   ContainerMaxMemory:
     Description: 'The maximum number of memory reservation (in MB)  per container that you plan to run on this cluster.'
     Type: Number
-    Default: 512
-  # ContainerShortageThreshold:
-  #   Description: 'Scale up if free cluster capacity <= containers (based on ContainerMaxCPU and ContainerMaxMemory settings)'
-  #   Type: Number
-  #   Default: 2
-  #   MinValue: 0
-  #   ConstraintDescription: 'Must be >= 0'
-  # ContainerExcessThreshold:
-  #   Description: 'Scale down if free cluster capacity >= containers (based on ContainerMaxCPU and ContainerMaxMemory settings)'
-  #   Type: Number
-  #   Default: 10
-  #   MinValue: 2
-  #   ConstraintDescription: 'Must be >= 2'
+    Default: '256'
+  ContainerShortageThreshold:
+    Description: 'Scale up if free cluster capacity <= containers (based on ContainerMaxCPU and ContainerMaxMemory settings)'
+    Type: Number
+    Default: '0'
+    MinValue: '0'
+    ConstraintDescription: 'Must be >= 0'
+  ContainerExcessThreshold:
+    Description: 'Scale down if free cluster capacity >= containers (based on ContainerMaxCPU and ContainerMaxMemory settings)'
+    Type: Number
+    Default: '4'
+    MinValue: '2'
+    ConstraintDescription: 'Must be >= 2'
 Mappings:
   RegionMap:
     'eu-west-2':
@@ -275,26 +312,19 @@ Mappings:
 Conditions:
   HasKeyName: !Not [!Equals [!Ref KeyName, '']]
   HasIAMUserSSHAccess: !Equals [!Ref IAMUserSSHAccess, 'true']
-  HasAuthProxySecurityGroup: !Not [!Equals [!Ref ParentAuthProxyStack, '']]
-  HasNotAuthProxySecurityGroup: !Equals [!Ref ParentAuthProxyStack, '']
   HasNewRelic: !Not [!Equals [!Ref NewRelicLicenseKey, '']]
   HasLoadBalancerSchemeInternal: !Equals [!Ref LoadBalancerScheme, 'internal']
-  HasLoadBalancerCertificateArn: !Not [!Equals [!Ref LoadBalancerCertificateArn, '']]
-  HasNotLoadBalancerCertificateArn: !Equals [!Ref LoadBalancerCertificateArn, '']
-  HasAuthProxySecurityGroupAndLoadBalancerCertificateArn: !And [!Condition HasAuthProxySecurityGroup, !Condition HasLoadBalancerCertificateArn]
-  HasNotAuthProxySecurityGroupAndLoadBalancerCertificateArn: !And [!Condition HasNotAuthProxySecurityGroup, !Condition HasLoadBalancerCertificateArn]
-  HasAlertTopic: !Not [!Equals [!Ref ParentAlertStack, '']]
+  HasLoadBalancerCertificate: !Not [!Equals [!Ref LoadBalancerCertificate, '']]
+  HasNotLoadBalancerCertificate: !Equals [!Ref LoadBalancerCertificate, '']
   HasDBUser: !Not [!Equals [!Ref DataBaseUser, '']]
   HasDBName: !Not [!Equals [!Ref DataBaseName, '']]
+  HasDBInstanceName: !Not [!Equals [!Ref DataBaseInstanceName, '']]
+  CreateRDS: !Equals [!Ref CreateRDS, 'true']
+  S3Image: !Not [!Equals [!Ref S3PathToImage, '']]
+  LBCCyberexposure: !Equals [!Ref LoadBalancerCertificate, '*.cyberexposure.com']
+  LBCxxx: !Equals [!Ref LoadBalancerCertificate, '*.xxx.com']
+  LBCxxxsecurity: !Equals [!Ref LoadBalancerCertificate, '*.xxx.com']
 Resources:
-  Cluster:
-    Type: 'AWS::ECS::Cluster'
-    Properties:
-      ClusterName: !Sub '${AppName}-${Environment}'
-  LogGroup:
-    Type: 'AWS::Logs::LogGroup'
-    Properties:
-      RetentionInDays: !Ref LogsRetentionInDays
   InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -304,6 +334,7 @@ Resources:
   Role:
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: !Sub '${AppName}-${Environment}-IAM'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -313,7 +344,7 @@ Resources:
           Action: 'sts:AssumeRole'
       Path: '/'
       Policies:
-      - PolicyName: ecs
+      - PolicyName: !Sub '${AppName}-${Environment}-ecs'
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -321,7 +352,7 @@ Resources:
             Action:
             - 'ecs:DiscoverPollEndpoint'
             Resource: '*'
-      - PolicyName: ecs-cluster
+      - PolicyName: !Sub '${AppName}-${Environment}-ecs-cluster'
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -333,7 +364,7 @@ Resources:
             - 'ecs:SubmitTaskStateChange'
             - 'ecs:ListContainerInstances'
             Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${Cluster}'
-      - PolicyName: ecs-cluster-instance
+      - PolicyName: !Sub '${AppName}-${Environment}-cluster-inst'
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -349,18 +380,42 @@ Resources:
               'StringEquals':
                 'ecs:cluster':
                   !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${Cluster}'
-      - PolicyName: ecr
+      - PolicyName: !Sub '${AppName}-${Environment}-ecr'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ecr:GetDownloadUrlForLayer'
+            - 'ecr:BatchGetImage'
+            - 'ecr:BatchCheckLayerAvailability'
+            - 'ecr:CompleteLayerUpload'
+            - 'ecr:DescribeImages'
+            - 'ecr:DescribeRepositories'
+            - 'ecr:UploadLayerPart'
+            - 'ecr:ListImages'
+            - 'ecr:InitiateLayerUpload'
+            - 'ecr:PutImage'
+            - 'ecr:GetAuthorizationToken'
+            - 'ecr:DescribeImages'
+            Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${AppName}-${Environment}'
+      - PolicyName: !Sub '${AppName}-${Environment}-ecr-token'
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
           - Effect: Allow
             Action:
             - 'ecr:GetAuthorizationToken'
-            - 'ecr:BatchCheckLayerAvailability'
-            - 'ecr:GetDownloadUrlForLayer'
-            - 'ecr:BatchGetImage'
             Resource: '*'
-      - PolicyName: logs
+      - PolicyName: !Sub '${AppName}-${Environment}-ec2-tag'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ec2:CreateTags'
+            Resource: 'arn:aws:ec2:*:*:instance/*'
+      - PolicyName: !Sub '${AppName}-${Environment}-logs'
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -371,14 +426,51 @@ Resources:
             - 'logs:PutLogEvents'
             - 'logs:DescribeLogStreams'
             Resource: 'arn:aws:logs:*:*:*'
-      - PolicyName: autoscaling
+      - PolicyName: !Sub '${AppName}-${Environment}-autoscaling'
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
           - Sid: write
             Effect: Allow
-            Action: 'autoscaling:CompleteLifecycleAction'
+            Action:
+            - 'autoscaling:CompleteLifecycleAction'
+            - 'autoscaling:DescribeAutoScalingGroups'
             Resource: '*'
+  IAMS3:
+    Type: 'AWS::IAM::Policy'
+    Condition: S3Image
+    Properties:
+      Roles:
+      - !Ref Role
+      PolicyName: !Sub '${AppName}-${Environment}-S3'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - 's3:*'
+          Resource:
+          - !Sub
+            - arn:aws:s3:::${NameS3}/*
+            - { NameS3: !Select [ "0", !Split [ "/", !Ref S3PathToImage]] }
+          - !Sub
+            - arn:aws:s3:::${NameS3}
+            - { NameS3: !Select [ "0", !Split [ "/", !Ref S3PathToImage]] }
+  IAMS31:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      Roles:
+      - !Ref Role
+      PolicyName: !Sub '${AppName}-${Environment}-S31'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - 's3:*'
+          Resource:
+          - arn:aws:s3:::xxx-ecs-hostnames/*
+          - arn:aws:s3:::xxx-ecs-hostnames
   IAMPolicySSHAccess:
     Type: 'AWS::IAM::Policy'
     Condition: HasIAMUserSSHAccess
@@ -433,15 +525,14 @@ Resources:
       FromPort: '22'
       ToPort: '22'
       CidrIp: 192.168.0.0/16
-  ALBSecurityGroupInHttpsWorld:
+  SecurityGroupInICMP:
     Type: 'AWS::EC2::SecurityGroupIngress'
-    Condition: HasNotAuthProxySecurityGroupAndLoadBalancerCertificateArn
     Properties:
-      GroupId: !Ref ALBSecurityGroup
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      CidrIp: '0.0.0.0/0'
+      GroupId: !Ref SecurityGroup
+      IpProtocol: icmp
+      FromPort: '-1'
+      ToPort: '-1'
+      CidrIp: !Ref VPCCidr
   ALBSecurityGroupInHttp:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
@@ -450,9 +541,9 @@ Resources:
       FromPort: 80
       ToPort: 80
       CidrIp: '0.0.0.0/0'
-  ALBSecurityGroupInHttpsAuthProxy:
+  ALBSecurityGroupInHttps:
     Type: 'AWS::EC2::SecurityGroupIngress'
-    Condition: HasAuthProxySecurityGroupAndLoadBalancerCertificateArn
+    Condition: HasLoadBalancerCertificate
     Properties:
       GroupId: !Ref ALBSecurityGroup
       IpProtocol: tcp
@@ -473,100 +564,6 @@ Resources:
         FromPort: 0
         ToPort: 65535
         IpProtocol: tcp
-  SGPostgresRds:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Limit connections to postgres db to port 5432
-      VpcId: !Ref VPCID
-      GroupName: !Sub '${AppName}-${Environment}-RDS-SG'
-      Tags:
-      - Key: Name
-        Value: !Sub '${AppName}-${Environment}-RDS-SG'
-  ingressSGP1:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId:
-        Ref: SGPostgresRds
-      IpProtocol: tcp
-      FromPort: '5432'
-      ToPort: '5432'
-      SourceSecurityGroupId:
-        Ref: SecurityGroup
-  egressSGP1:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      GroupId:
-        Ref: SGPostgresRds
-      IpProtocol: "-1"
-      CidrIp: 0.0.0.0/0
-  HTTPCodeELB5XXTooHighAlarm:
-    Condition: HasAlertTopic
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Application load balancer returns 5XX HTTP status codes'
-      Namespace: 'AWS/ApplicationELB'
-      MetricName: HTTPCode_ELB_5XX_Count
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      ComparisonOperator: GreaterThanThreshold
-      Threshold: 0
-      AlarmActions:
-      - 'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'
-      Dimensions:
-      - Name: TargetGroup
-        Value: !GetAtt DefaultTargetGroup.TargetGroupFullName
-  HTTPCodeTarget5XXTooHighAlarm:
-    Condition: HasAlertTopic
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Application load balancer receives 5XX HTTP status codes from targets'
-      Namespace: 'AWS/ApplicationELB'
-      MetricName: HTTPCode_Target_5XX_Count
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      ComparisonOperator: GreaterThanThreshold
-      Threshold: 0
-      AlarmActions:
-      - 'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'
-      Dimensions:
-      - Name: TargetGroup
-        Value: !GetAtt DefaultTargetGroup.TargetGroupFullName
-  RejectedConnectionCountTooHighAlarm:
-    Condition: HasAlertTopic
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Application load balancer rejected connections because the load balancer had reached its maximum number of connections'
-      Namespace: 'AWS/ApplicationELB'
-      MetricName: RejectedConnectionCount
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      ComparisonOperator: GreaterThanThreshold
-      Threshold: 0
-      AlarmActions:
-      - 'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'
-      Dimensions:
-      - Name: TargetGroup
-        Value: !GetAtt DefaultTargetGroup.TargetGroupFullName
-  TargetConnectionErrorCountTooHighAlarm:
-    Condition: HasAlertTopic
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Application load balancer could not connect to targets'
-      Namespace: 'AWS/ApplicationELB'
-      MetricName: TargetConnectionErrorCount
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      ComparisonOperator: GreaterThanThreshold
-      Threshold: 0
-      AlarmActions:
-      - 'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'
-      Dimensions:
-      - Name: TargetGroup
-        Value: !GetAtt DefaultTargetGroup.TargetGroupFullName
   LoadBalancer: # not monitored, but DefaultTargetGroup is monitored!
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
@@ -585,7 +582,7 @@ Resources:
   DefaultTargetGroup: # this is used as the fall-back target group and is used to health checking the ECS agent. Services use their own ListenerRules to accept traffic based on path prefixes.
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
-      Name: !Sub '${AppName}-${Environment}-TargetGroup'
+      Name: !Sub '${AppName}-${Environment}-TG'
       HealthCheckIntervalSeconds: 30
       HealthCheckPath: '/'
       HealthCheckProtocol: HTTP
@@ -608,12 +605,39 @@ Resources:
       LoadBalancerArn: !Ref LoadBalancer
       Port: 80
       Protocol: HTTP
-  HttpsListener:
+  HttpsListenerCyberexposure:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
-    Condition: HasLoadBalancerCertificateArn
+    Condition: HasLoadBalancerCertificate
+    Condition: LBCCyberexposure
     Properties:
       Certificates:
-      - CertificateArn: !Ref LoadBalancerCertificateArn
+      - CertificateArn: arn:aws:acm:us-east-1:xxx:certificate/96d32a20-3d3b-4013-b4d5-d02fd2acdf21
+      DefaultActions:
+      - TargetGroupArn: !Ref DefaultTargetGroup
+        Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+  HttpsListenerxxx:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Condition: HasLoadBalancerCertificate
+    Condition: LBCxxx
+    Properties:
+      Certificates:
+      - CertificateArn: arn:aws:acm:us-east-1:xxx:certificate/2bc57751-1d40-41fc-a41c-4ec5440bcebe
+      DefaultActions:
+      - TargetGroupArn: !Ref DefaultTargetGroup
+        Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+  HttpsListenerxxxsecurity:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Condition: HasLoadBalancerCertificate
+    Condition: LBCxxxsecurity
+    Properties:
+      Certificates:
+      - CertificateArn: arn:aws:acm:us-east-1:xxxx:certificate/57fc67f8-aa44-4e4b-8fed-cf352b7b0b8b
       DefaultActions:
       - TargetGroupArn: !Ref DefaultTargetGroup
         Type: forward
@@ -622,377 +646,6 @@ Resources:
       Protocol: HTTPS
   LaunchConfiguration:
     Type: 'AWS::AutoScaling::LaunchConfiguration'
-    Metadata:
-      'AWS::CloudFormation::Init':
-        configSets:
-          default:
-            !If
-            - HasNewRelic
-            - !If [HasIAMUserSSHAccess, [awslogs, ssh-access, install, newrelic], [awslogs, install, newrelic]]
-            - !If [HasIAMUserSSHAccess, [awslogs, ssh-access, install], [awslogs, install]]
-        awslogs:
-          packages:
-            yum:
-              awslogs: []
-          files:
-            '/etc/awslogs/awscli.conf':
-              content: !Sub |
-                [default]
-                region = ${AWS::Region}
-                [plugins]
-                cwlogs = cwlogs
-              mode: '000644'
-              owner: root
-              group: root
-            '/etc/awslogs/awslogs.conf':
-              content: !Sub |
-                [general]
-                state_file = /var/lib/awslogs/agent-state
-                [/var/log/messages]
-                datetime_format = %b %d %H:%M:%S
-                file = /var/log/messages
-                log_stream_name = {instance_id}/var/log/messages
-                log_group_name = ${LogGroup}
-                [/var/log/secure]
-                datetime_format = %b %d %H:%M:%S
-                file = /var/log/secure
-                log_stream_name = {instance_id}/var/log/secure
-                log_group_name = ${LogGroup}
-                [/var/log/cron]
-                datetime_format = %b %d %H:%M:%S
-                file = /var/log/cron
-                log_stream_name = {instance_id}/var/log/cron
-                log_group_name = ${LogGroup}
-                [/var/log/cloud-init.log]
-                datetime_format = %b %d %H:%M:%S
-                file = /var/log/cloud-init.log
-                log_stream_name = {instance_id}/var/log/cloud-init.log
-                log_group_name = ${LogGroup}
-                [/var/log/cfn-init.log]
-                datetime_format = %Y-%m-%d %H:%M:%S
-                file = /var/log/cfn-init.log
-                log_stream_name = {instance_id}/var/log/cfn-init.log
-                log_group_name = ${LogGroup}
-                [/var/log/cfn-hup.log]
-                datetime_format = %Y-%m-%d %H:%M:%S
-                file = /var/log/cfn-hup.log
-                log_stream_name = {instance_id}/var/log/cfn-hup.log
-                log_group_name = ${LogGroup}
-                [/var/log/cfn-init-cmd.log]
-                datetime_format = %Y-%m-%d %H:%M:%S
-                file = /var/log/cfn-init-cmd.log
-                log_stream_name = {instance_id}/var/log/cfn-init-cmd.log
-                log_group_name = ${LogGroup}
-                [/var/log/cloud-init-output.log]
-                file = /var/log/cloud-init-output.log
-                log_stream_name = {instance_id}/var/log/cloud-init-output.log
-                log_group_name = ${LogGroup}
-                [/var/log/dmesg]
-                file = /var/log/dmesg
-                log_stream_name = {instance_id}/var/log/dmesg
-                log_group_name = ${LogGroup}
-                [/var/log/newrelic/nrsysmond.log]
-                datetime_format = %Y-%m-%d %H:%M:%S
-                file = /var/log/newrelic/nrsysmond.log
-                log_stream_name = {instance_id}/var/log/newrelic/nrsysmond.log
-                log_group_name = ${LogGroup}
-              mode: '000644'
-              owner: root
-              group: root
-          services:
-            sysvinit:
-              awslogs:
-                enabled: true
-                ensureRunning: true
-                packages:
-                  yum:
-                  - awslogs
-                files:
-                - '/etc/awslogs/awslogs.conf'
-                - '/etc/awslogs/awscli.conf'
-        newrelic:
-          packages:
-            rpm:
-              newrelic-sysmond: 'https://download.newrelic.com/pub/newrelic/el5/x86_64/newrelic-sysmond-2.3.0.132-1.x86_64.rpm'
-          files:
-            '/etc/newrelic/nrsysmond.cfg':
-              content: !Sub |
-                license_key=${NewRelicLicenseKey}
-                loglevel=info
-                logfile=/var/log/newrelic/nrsysmond.log
-                labels=StackName:${AWS::StackName};AccountId:${AWS::AccountId};Region:${AWS::Region}
-              mode: '000640'
-              owner: root
-              group: newrelic
-          services:
-            sysvinit:
-              newrelic-sysmond:
-                enabled: true
-                ensureRunning: true
-                files:
-                - '/etc/newrelic/nrsysmond.cfg'
-        ssh-access:
-          packages:
-            yum:
-              'aws-cli': []
-          files:
-            '/opt/authorized_keys_command.sh':
-              content: |
-                #!/bin/bash -e
-                if [ -z "$1" ]; then
-                  exit 1
-                fi
-                UnsaveUserName="$1"
-                UnsaveUserName=${UnsaveUserName//".plus."/"+"}
-                UnsaveUserName=${UnsaveUserName//".equal."/"="}
-                UnsaveUserName=${UnsaveUserName//".comma."/","}
-                UnsaveUserName=${UnsaveUserName//".at."/"@"}
-                aws iam list-ssh-public-keys --user-name "$UnsaveUserName" --query "SSHPublicKeys[?Status == 'Active'].[SSHPublicKeyId]" --output text | while read -r KeyId; do
-                  aws iam get-ssh-public-key --user-name "$UnsaveUserName" --ssh-public-key-id "$KeyId" --encoding SSH --query "SSHPublicKey.SSHPublicKeyBody" --output text
-                done
-              mode: '000755'
-              owner: root
-              group: root
-            '/opt/import_users.sh':
-              content: |
-                #!/bin/bash -e
-                aws iam list-users --query "Users[].[UserName]" --output text | while read User; do
-                  SaveUserName="$User"
-                  SaveUserName=${SaveUserName//"+"/".plus."}
-                  SaveUserName=${SaveUserName//"="/".equal."}
-                  SaveUserName=${SaveUserName//","/".comma."}
-                  SaveUserName=${SaveUserName//"@"/".at."}
-                  if [ "${#SaveUserName}" -le "32" ]; then
-                    if ! id -u "$SaveUserName" >/dev/null 2>&1; then
-                      #sudo will read each file in /etc/sudoers.d, skipping file names that end in ‘~’ or contain a ‘.’ character to avoid causing problems with package manager or editor temporary/backup files.
-                      SaveUserFileName=$(echo "$SaveUserName" | tr "." " ")
-                      /usr/sbin/useradd "$SaveUserName"
-                      echo "$SaveUserName ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$SaveUserFileName"
-                    fi
-                  else
-                    echo "Can not import IAM user ${SaveUserName}. User name is longer than 32 characters."
-                  fi
-                done
-              mode: '000755'
-              owner: root
-              group: root
-            '/etc/cron.d/import_users':
-              content: |
-                */10 * * * * root /opt/import_users.sh
-              mode: '000644'
-              owner: root
-              group: root
-          commands:
-            'a_configure_sshd_command':
-              command: 'sed -i "s:#AuthorizedKeysCommand none:AuthorizedKeysCommand /opt/authorized_keys_command.sh:g" /etc/ssh/sshd_config'
-            'b_configure_sshd_commanduser':
-              command: 'sed -i "s:#AuthorizedKeysCommandUser nobody:AuthorizedKeysCommandUser nobody:g" /etc/ssh/sshd_config'
-            'c_import_users':
-              command: './import_users.sh'
-              cwd: '/opt'
-          services:
-            sysvinit:
-              sshd:
-                enabled: true
-                ensureRunning: true
-                commands:
-                - 'a_configure_sshd_command'
-                - 'b_configure_sshd_commanduser'
-        install:
-          packages:
-            yum:
-              ruby: []
-            rubygems:
-              'aws-sdk':
-              - '3.0.1'
-              daemons:
-              - '1.2.4'
-          files:
-            '/etc/cfn/cfn-hup.conf':
-              content: !Sub |
-                [main]
-                stack=${AWS::StackId}
-                region=${AWS::Region}
-                interval=1
-              mode: '000400'
-              owner: root
-              group: root
-            '/etc/cfn/hooks.d/cfn-auto-reloader.conf':
-              content: !Sub |
-                [cfn-auto-reloader-hook]
-                triggers=post.update
-                path=Resources.LaunchConfiguration.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --region=${AWS::Region} --resource=LaunchConfiguration
-                runas=root
-            '/etc/init.d/lifecycle-poller':
-              content: |
-                #!/usr/bin/env ruby
-                # chkconfig:    - 80 20
-                APP_NAME = 'lifecycle-poller'
-                APP_PATH = '/opt/lifecycle-poller/daemon.rb'
-                case ARGV.first
-                  when 'start'
-                    puts "Starting #{APP_NAME}..."
-                    system(APP_PATH, 'start')
-                    exit($?.exitstatus)
-                  when 'stop'
-                    system(APP_PATH, 'stop')
-                    exit($?.exitstatus)
-                  when 'restart'
-                    system(APP_PATH, 'restart')
-                    exit($?.exitstatus)
-                  when 'status'
-                    system(APP_PATH, 'status')
-                    exit($?.exitstatus)
-                end
-                unless %w{start stop restart status}.include? ARGV.first
-                  puts "Usage: #{APP_NAME} {start|stop|restart|status}"
-                  exit(1)
-                end
-              mode: '000755'
-              owner: root
-              group: root
-            '/opt/lifecycle-poller/poller.conf':
-              content: !Sub |
-                region: ${AWS::Region}
-                cluster: ${Cluster}
-
-                maxWaitInSeconds: ${DrainingTimeoutInSeconds}
-              mode: '000400'
-              owner: root
-              group: root
-            '/opt/lifecycle-poller/daemon.rb':
-              content: |
-                #!/usr/bin/env ruby
-                require 'daemons'
-                Daemons.run(__dir__ + '/worker.rb', {:monitor => true, :log_output_syslog => true})
-              mode: '000500'
-              owner: root
-              group: root
-            '/opt/lifecycle-poller/worker.rb':
-              content: |
-                #!/usr/bin/env ruby
-                require 'net/http'
-                require 'aws-sdk'
-                require 'json'
-                require 'uri'
-                require 'yaml'
-                require 'syslog/logger'
-                $log = Syslog::Logger.new 'poller'
-                $conf = YAML::load_file(__dir__ + '/poller.conf')
-                Aws.config.update(region: $conf['region'])
-                $log.info 'poller started'
-                def fetchContainerInstanceId(ec2InstanceId)
-                  ecs = Aws::ECS::Client.new()
-                  resp1 = ecs.list_container_instances({
-                    cluster: $conf['cluster']
-                  })
-                  resp2 = ecs.describe_container_instances({
-                    cluster: $conf['cluster'],
-                    container_instances: resp1.container_instance_arns,
-                  })
-                  cis = resp2.container_instances.select {|ci| ci.ec2_instance_id == ec2InstanceId}
-                  return cis.first().container_instance_arn.split("/").last()
-                end
-                def drainContainerInstanceId(containerInstanceId)
-                  ecs = Aws::ECS::Client.new()
-                  ecs.update_container_instances_state({
-                    cluster: $conf['cluster'],
-                    container_instances: [containerInstanceId],
-                    status: "DRAINING"
-                  })
-                end
-                def isContainerInstanceIdle(containerInstanceId)
-                  ecs = Aws::ECS::Client.new()
-                  resp = ecs.list_tasks({
-                    cluster: $conf['cluster'],
-                    container_instance: containerInstanceId
-                  })
-                  return resp.task_arns.empty?
-                end
-                def awaitContainerInstanceIdle(containerInstanceId)
-                  endTime = Time.now.to_i + $conf['maxWaitInSeconds']
-                  while Time.now.to_i < endTime do
-                    if isContainerInstanceIdle containerInstanceId
-                      $log.info "container instance #{containerInstanceId} is idle"
-                      return true
-                    end
-                    sleep 5 # seconds
-                  end
-                  $log.error "container instance #{containerInstanceId} is not idle, but wait time elapsed"
-                  return false
-                end
-                def deregisterContainerInstance(containerInstanceId)
-                  ecs = Aws::ECS::Client.new()
-                  resp = ecs.deregister_container_instance({
-                    cluster: $conf['cluster'],
-                    container_instance: containerInstanceId,
-                    force: false
-                  })
-                end
-                def completeLifecycleAction(token, hook, asg)
-                  begin
-                    autoscaling = Aws::AutoScaling::Client.new()
-                    autoscaling.complete_lifecycle_action(
-                      lifecycle_hook_name: hook,
-                      auto_scaling_group_name: asg,
-                      lifecycle_action_token: token,
-                      lifecycle_action_result: 'CONTINUE'
-                    )
-                    $log.info "Lifecycle action completed"
-                    return true
-                  rescue Exception => e
-                    if e.code == 'ValidationError'
-                      $log.info "Lifecycle action failed validation: #{e.inspect}"
-                      return true
-                    else
-                      $log.info "Lifecycle action failed: #{e.inspect}"
-                      raise e
-                    end
-                  end
-                end
-                def pollSQS()
-                  poller = Aws::SQS::QueuePoller.new($conf['queueUrl'])
-                  poller.poll do |msg|
-                    body = JSON.parse(msg.body)
-                    $log.debug "message #{body}"
-                    if body['Event'] == 'autoscaling:TEST_NOTIFICATION'
-                      $log.info 'received test notification'
-                    else
-                      if body['LifecycleTransition'] == 'autoscaling:EC2_INSTANCE_TERMINATING'
-                        $log.info "lifecycle transition for EC2 instance #{body['EC2InstanceId']}"
-                        containerInstanceId = fetchContainerInstanceId body['EC2InstanceId']
-                        $log.info "lifecycle transition for container instance #{containerInstanceId}"
-                        drainContainerInstanceId containerInstanceId
-                        awaitContainerInstanceIdle containerInstanceId
-                        deregisterContainerInstance containerInstanceId
-                        completeLifecycleAction body['LifecycleActionToken'], body['LifecycleHookName'], body['AutoScalingGroupName']
-                      else
-                        $log.error "received unsupported lifecycle transition: #{body['LifecycleTransition']}"
-                      end
-                    end
-                  end
-                end
-                pollSQS
-              mode: '000500'
-              owner: root
-              group: root
-          services:
-            sysvinit:
-              cfn-hup:
-                enabled: true
-                ensureRunning: true
-                files:
-                - '/etc/cfn/cfn-hup.conf'
-                - '/etc/cfn/hooks.d/cfn-auto-reloader.conf'
-              lifecycle-poller:
-                enabled: true
-                ensureRunning: true
-                files:
-                - '/etc/init.d/lifecycle-poller'
-                - '/opt/lifecycle-poller/poller.conf'
-                - '/opt/lifecycle-poller/daemon.rb'
-                - '/opt/lifecycle-poller/worker.rb'
     Properties:
       ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', ECSAMI]
       IamInstanceProfile: !Ref InstanceProfile
@@ -1017,8 +670,71 @@ Resources:
           yum update -y
           rpm -Uvh https://yum.newrelic.com/pub/newrelic/el5/x86_64/newrelic-repo-5-3.noarch.rpm
           yum -y install newrelic-sysmond wget
-          export HOSTNAME=`hostname`-${AppName}-${Environment}
-          mkdir /tmp/logs/production_log
+
+          yum install python-pip -y
+          python-pip install awscli --upgrade --user
+          export PATH=$PATH:~/.local/bin
+
+          mkdir /root/.aws
+          touch /root/.aws/credentials
+          echo '
+          [default]
+          region = ${AWS::Region}
+          output = text' > ~/.aws/credentials
+
+          if [[ "$(aws ecr list-images --repository-name ${AppName}-${Environment} --region ${AWS::Region})" ]]; then
+            echo "Repo has already contained an image";
+          else
+            aws s3 cp s3://${S3PathToImage} ./image.tar
+            docker pull ${ImageName}
+            Var=$(docker load -i image.tar | sed 's/Loaded image://g')
+            echo $Var
+            echo "Repo is empty"
+            aws ecr get-login --no-include-email --region ${AWS::Region} | bash
+            docker tag $Var ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AppName}-${Environment}:latest
+            docker tag ${ImageName} ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AppName}-${Environment}:latest
+            docker push  ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AppName}-${Environment}:latest
+            rm ./image.tar;
+          fi
+
+          sleep $[ ( $RANDOM % 90 )  + 1 ]s
+
+          if [ "$(aws s3 ls s3://xxx-ecs-hostnames | grep ${AppName}-${Environment})" == "" ]; then
+            echo  '1.1.1.1 ${AppName}-${Environment}-001-web.xxx.com
+                   2.2.2.2 ${AppName}-${Environment}-002-web.xxx.com
+                   3.3.3.3 ${AppName}-${Environment}-003-web.xxx.com
+                   4.4.4.4 ${AppName}-${Environment}-004-web.xxx.com' > ${AppName}-${Environment}
+          else
+            aws s3 cp s3://xxx-ecs-hostnames/${AppName}-${Environment} ./${AppName}-${Environment}
+          fi
+
+
+          IPS="$(cat ${AppName}-${Environment} | awk '{print $1}')"
+
+          for IP in $IPS ; do
+                  if ping -c 1 $IP &> /dev/null
+                          then
+                          echo full
+                          else
+                          echo zero
+                  fi
+          done >> freeiplist
+
+          FIRSTFREEIP="$(paste ${AppName}-${Environment} freeiplist | grep -w zero | head -n1 | awk '{print $1}')"
+          OWNIP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+          NEWHOSTNAME="$(grep -w $FIRSTFREEIP ${AppName}-${Environment} | awk '{print $2}')"
+          hostname $NEWHOSTNAME
+          sed -i 's/HOSTNAME=localhost.localdomain/HOSTNAME='"$NEWHOSTNAME"'/' /etc/sysconfig/network
+          sed -i "s/$FIRSTFREEIP/$OWNIP/g" ${AppName}-${Environment}
+          aws s3 cp ${AppName}-${Environment} s3://xxxx-ecs-hostnames/${AppName}-${Environment}
+
+          #non-necessary as done once
+          #rm freeiplist
+          ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+          aws ec2 create-tags --resources $ID --tags Key=Name,Value=$NEWHOSTNAME
+
+
+          mkdir /tmp/logs/production_log/
           # setup sumologic collector
           echo '
           {
@@ -1116,18 +832,12 @@ Resources:
       MinSize: !Ref MinSize
       MaxSize: !Ref MaxSize
       DesiredCapacity: !Ref DesiredSize
-      HealthCheckGracePeriod: 500
+      HealthCheckGracePeriod: 120
       HealthCheckType: EC2
       TargetGroupARNs:
       - !Ref DefaultTargetGroup
-      NotificationConfigurations: !If
-      - HasAlertTopic
-      - - NotificationTypes:
-          - 'autoscaling:EC2_INSTANCE_LAUNCH_ERROR'
-          - 'autoscaling:EC2_INSTANCE_TERMINATE_ERROR'
-          TopicARN:
-            'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'
-      - !Ref 'AWS::NoValue'
+      TerminationPolicies:
+      - NewestInstance
       VPCZoneIdentifier: !If
       - HasLoadBalancerSchemeInternal
       - !Split
@@ -1136,285 +846,22 @@ Resources:
       - !Split
         - ','
         - !Join [',', [!Ref SubnetAPublic, !Ref SubnetBPublic]]
-      Tags:
-      - Key: Name
-        Value: !Ref NameTag
-        PropagateAtLaunch: true
+      # Tags:
+      # # - Key: Name
+      # #   Value: !Sub '${NameTag}'
+        # PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT15M
+        Timeout: PT5M
         Count: 0
     UpdatePolicy:
       AutoScalingRollingUpdate:
-        PauseTime: PT15M
-        WaitOnResourceSignals: true
-  CPUTooHighAlarm:
-    Condition: HasAlertTopic
-    Type: 'AWS::CloudWatch::Alarm'
+        PauseTime: PT5M
+        WaitOnResourceSignals: false
+  Cluster:
+    Type: 'AWS::ECS::Cluster'
     Properties:
-      AlarmDescription: 'Average CPU utilization over last 5 minutes higher than 70%'
-      Namespace: 'AWS/EC2'
-      MetricName: CPUUtilization
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 1
-      ComparisonOperator: GreaterThanThreshold
-      Threshold: 70
-      AlarmActions:
-      - 'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'
-      Dimensions:
-      - Name: AutoScalingGroupName
-        Value: !Ref AutoScalingGroup
-  ScaleUpPolicy:
-    Type: 'AWS::AutoScaling::ScalingPolicy'
-    Properties:
-      AdjustmentType: ChangeInCapacity
-      AutoScalingGroupName: !Ref AutoScalingGroup
-      Cooldown: 300
-      ScalingAdjustment: 1
-  ScaleDownPolicy:
-    Type: 'AWS::AutoScaling::ScalingPolicy'
-    Properties:
-      AdjustmentType: ChangeInCapacity
-      AutoScalingGroupName: !Ref AutoScalingGroup
-      Cooldown: 300
-      ScalingAdjustment: -1
-  ContainerInstancesShortageAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Cluster is running out of container instances'
-      Namespace: !Ref 'AWS::StackName'
-      Dimensions:
-      - Name: ClusterName
-        Value: !Sub '${AppName}-${Environment}'
-      MetricName: SchedulableContainers
-      ComparisonOperator: LessThanOrEqualToThreshold
-      Statistic: Minimum # special rule because we scale on reservations and not utilization
-      Period: 60
-      EvaluationPeriods: 1
-      Threshold: 10
-      AlarmActions:
-      - !Ref ScaleUpPolicy
-  CPUReservationTooHighAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Average CPU reservation over last 5 minutes higher than 70%'
-      Namespace: 'AWS/ECS'
-      Dimensions:
-      - Name: ClusterName
-        Value: !Sub '${AppName}-${Environment}'
-      MetricName: CPUUtilization
-      ComparisonOperator: GreaterThanThreshold
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 1
-      Threshold: 70
-      AlarmActions:
-      - !Ref ScaleUpPolicyECScpu
-  CPUUtilizationLowAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Service is wasting CPU'
-      Namespace: 'AWS/ECS'
-      Dimensions:
-      - Name: ClusterName
-        Value: !Sub '${AppName}-${Environment}'
-      MetricName: CPUUtilization
-      ComparisonOperator: LessThanThreshold
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 3
-      Threshold: 30
-      AlarmActions:
-      - !Ref ScaleDownPolicyECScpu
-  MemoryUtilizationTooHighAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Average memory utilization over last 5 minutes higher than 70%'
-      Namespace: 'AWS/ECS'
-      Dimensions:
-      - Name: ClusterName
-        Value: !Sub '${AppName}-${Environment}'
-      MetricName: MemoryUtilization
-      ComparisonOperator: GreaterThanThreshold
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 1
-      Threshold: 70
-      AlarmActions:
-      - !Ref ScaleUpPolicyECSmemory
-  MemoryUtilizationTooLowAlarm:
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      AlarmDescription: 'Average memory utilization over last 5 minutes lower than 10%'
-      Namespace: 'AWS/ECS'
-      Dimensions:
-      - Name: ClusterName
-        Value: !Sub '${AppName}-${Environment}'
-      MetricName: MemoryUtilization
-      ComparisonOperator: LessThanThreshold
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 1
-      Threshold: 10
-      AlarmActions:
-      - !Ref ScaleDownPolicyECSmemory
-  ScaleUpPolicyECScpu:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-up-cpu'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-        - MetricIntervalUpperBound: 0
-          ScalingAdjustment: 1
-  ScaleUpPolicyECSmemory:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-up-memory'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-        - MetricIntervalUpperBound: 0
-          ScalingAdjustment: 1
-  ScaleDownPolicyECScpu:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-down-cpu'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        # MinAdjustmentMagnitude: 1
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-  ScaleDownPolicyECSmemory:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-down-memory'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-  ScaleUpPolicyECScpu2:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-up-cpu2'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget2
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-        - MetricIntervalUpperBound: 0
-          ScalingAdjustment: 1
-  ScaleUpPolicyECSmemory2:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-up-memory2'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget2
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-        - MetricIntervalUpperBound: 0
-          ScalingAdjustment: 1
-  ScaleDownPolicyECScpu2:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-down-cpu2'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget2
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        # MinAdjustmentMagnitude: 1
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-  ScaleDownPolicyECSmemory2:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: !Sub '${AWS::StackName}-scale-down-memory2'
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ScalableTarget2
-      StepScalingPolicyConfiguration:
-        AdjustmentType: ChangeInCapacity
-        Cooldown: 300
-        StepAdjustments:
-        - MetricIntervalLowerBound: 0
-          ScalingAdjustment: -1
-  ScalableTarget:
-    Type: 'AWS::ApplicationAutoScaling::ScalableTarget'
-    Properties:
-      MaxCapacity: !Ref MaxCapacity
-      MinCapacity: !Ref MinCapacity
-      ResourceId: !Join ['', [service/, !Ref 'Cluster', /, !GetAtt [Service, Name]]]
-      RoleARN: !GetAtt 'ScalableTargetRole.Arn'
-      ScalableDimension: 'ecs:service:DesiredCount'
-      ServiceNamespace: ecs
-  ScalableTarget2:
-    Type: 'AWS::ApplicationAutoScaling::ScalableTarget'
-    Properties:
-      MaxCapacity: !Ref MaxCapacity
-      MinCapacity: !Ref MinCapacity
-      ResourceId: !Join ['', [service/, !Ref 'Cluster', /, !GetAtt [Service2, Name]]]
-      RoleARN: !GetAtt 'ScalableTargetRole.Arn'
-      ScalableDimension: 'ecs:service:DesiredCount'
-      ServiceNamespace: ecs
-  ScalableTargetRole: # based on http://docs.aws.amazon.com/AmazonECS/latest/developerguide/autoscale_IAM_role.html
-    Type: 'AWS::IAM::Role'
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service: 'application-autoscaling.amazonaws.com'
-          Action: 'sts:AssumeRole'
-      Path: '/'
-      Policies:
-      - PolicyName: ecs
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - 'ecs:DescribeServices'
-            - 'ecs:UpdateService'
-            - 'application-autoscaling:*'
-            - 'cloudwatch:DescribeAlarms'
-            - 'cloudwatch:GetMetricStatistics'
-            Resource: '*'
-      - PolicyName: cloudwatch
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - 'cloudwatch:DescribeAlarms'
-            Resource: '*'
+      ClusterName: !Sub '${AppName}-${Environment}'
   EsrRepository:
     Type: "AWS::ECR::Repository"
     Properties:
@@ -1446,6 +893,9 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 50
       DesiredCount: !Ref DesiredCapacity
+      PlacementStrategies:
+      - Type: binpack
+        Field: memory
       LoadBalancers:
       - ContainerName: !Sub '${AppName}-${Environment}'
         ContainerPort: !Ref ApplicationPort
@@ -1464,6 +914,9 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 50
       DesiredCount: !Ref DesiredCapacity
+      PlacementStrategies:
+      - Type: binpack
+        Field: memory
       LoadBalancers:
       - ContainerName: !Sub '${AppName}-${Environment}'
         ContainerPort: !Ref ApplicationPort
@@ -1483,48 +936,79 @@ Resources:
           Principal:
             Service: 'ecs.amazonaws.com'
           Action: 'sts:AssumeRole'
-  DBInstance:
-    Type: AWS::RDS::DBInstance
+  Cloudwatch:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: [AutoScalingGroup, Service, Service2]
     Properties:
-      AllocatedStorage: '100'
-      AllowMajorVersionUpgrade: 'false'
-      AutoMinorVersionUpgrade: 'true'
-      DBInstanceClass:
-        Ref: DataBaseInstanceType
-      DBInstanceIdentifier: !If
-      - HasDBName
-      - !Sub '${DataBaseName}'
-      - !Sub '${Environment}-${AppName}-master'
-      Port: '5432'
-      StorageType: gp2
-      BackupRetentionPeriod: '7'
-      MasterUsername: !If
-      - HasDBUser
-      - !Sub '${DataBaseUser}'
-      - !Sub '${Environment}_${AppName}_master_user'
-      MasterUserPassword:
-        Ref: DataBasePassword
-      PreferredBackupWindow: 20:00-20:30
-      PreferredMaintenanceWindow: mon:06:53-mon:07:23
-      DBName: !If
-      - HasDBName
-      - !Sub '${DataBaseName}'
-      - !Sub '${Environment}_${AppName}_master'
-      Engine: postgres
-      EngineVersion: 9.6.2
-      LicenseModel: postgresql-license
-      MultiAZ: 'true'
-      DBSubnetGroupName:
-        Ref: DBSubnetGroup
-      VPCSecurityGroups:
-      - Ref: SGPostgresRds
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
+      Parameters:
+        Environment:
+          !Ref Environment
+        AppName:
+          !Ref AppName
+        MaxCapacity:
+          !Ref MaxCapacity
+        MinCapacity:
+          !Ref MinCapacity
+        MetricName:
+          !Ref MetricName
+        Threshold:
+          !Ref Threshold
+        PeriodsIncrease:
+          !Ref PeriodsIncrease
+        PeriodsDecrease:
+          !Ref PeriodsDecrease
+        ContainerShortageThreshold:
+          !Ref ContainerShortageThreshold
+        ContainerExcessThreshold:
+          !Ref ContainerExcessThreshold
+        ServiceName:
+          !GetAtt [Service, Name]
+        Service2Name:
+          !GetAtt [Service2, Name]
+        AutoScalingGroup:
+          !Ref AutoScalingGroup
+      TemplateURL: https://s3.amazonaws.com/xxx-ecs-stack/ecs-cloudwatch.yml
+  Rds:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateRDS
     Properties:
-      DBSubnetGroupDescription: RDS Instances are restricted to the private subnets
-      SubnetIds:
-        - !Sub '${SubnetAPrivate}'
-        - !Sub '${SubnetBPrivate}'
+      Parameters:
+        DataBaseInstanceType:
+          !Ref DataBaseInstanceType
+        DataBaseInstanceName:
+          !Ref DataBaseInstanceName
+        DataBaseName:
+          !Ref DataBaseName
+        DataBaseUser:
+          !Ref DataBaseUser
+        DataBasePassword:
+          !Ref DataBasePassword
+        Environment:
+          !Ref Environment
+        AppName:
+          !Ref AppName
+        VPCID:
+          !Ref VPCID
+        SubnetAPrivate:
+          !Ref SubnetAPrivate
+        SubnetBPrivate:
+          !Ref SubnetBPrivate
+        SecurityGroup:
+          !Ref SecurityGroup
+      TemplateURL: https://s3.amazonaws.com/xxxx-ecs-stack/ecs-rds.yml
+  Lambda:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Environment:
+          !Ref Environment
+        AppName:
+          !Ref AppName
+        ContainerMaxCPU:
+          !Ref ContainerMaxCPU
+        ContainerMaxMemory:
+          !Ref ContainerMaxMemory
+      TemplateURL: https://s3.amazonaws.com/xxxx-ecs-stack/ecs-lambda.yml
 Outputs:
   TemplateID:
     Description: 'cloudonaut.io template id'
@@ -1558,10 +1042,22 @@ Outputs:
     Value: !Ref HttpListener
     Export:
       Name: !Sub '${AWS::StackName}-HttpListener'
-  HttpsListener:
-    Condition: HasLoadBalancerCertificateArn
+  HttpsListenerCyberexposure:
+    Condition: LBCCyberexposure
     Description: 'ALB HTTPS listener for services.'
-    Value: !Ref HttpsListener
+    Value: !Ref HttpsListenerCyberexposure
+    Export:
+      Name: !Sub '${AWS::StackName}-HttpsListener'
+  HttpsListenerxxx:
+    Condition: LBCxxxx
+    Description: 'ALB HTTPS listener for services.'
+    Value: !Ref HttpsListenerxxxx
+    Export:
+      Name: !Sub '${AWS::StackName}-HttpsListener'
+  HttpsListenerxxxxsecurity:
+    Condition: LBCxxxxsecurity
+    Description: 'ALB HTTPS listener for services.'
+    Value: !Ref HttpsListenerxxxxsecurity
     Export:
       Name: !Sub '${AWS::StackName}-HttpsListener'
   CanonicalHostedZoneID:
@@ -1579,11 +1075,6 @@ Outputs:
     Value: !Ref SecurityGroup
     Export:
       Name: !Sub '${AWS::StackName}-SecurityGroup'
-  LogGroup:
-    Description: 'Log group of ECS cluster.'
-    Value: !Ref LogGroup
-    Export:
-      Name: !Sub '${AWS::StackName}-LogGroup'
   DNSName:
     Description: 'The DNS name for the ECS cluster load balancer.'
     Value: !GetAtt 'LoadBalancer.DNSName'
