@@ -57,15 +57,15 @@ Parameters:
   VPCID:
     Description: 'ID of existing VPC'
     Type: String
-    Default: 'vpc-99dcb6fd'
+    Default: 'vpc-xxx'
   SubnetAPrivate:
     Description: 'ID of first existing private subnet'
     Type: String
-    Default: 'subnet-21d40e57'
+    Default: 'subnet-xxx'
   SubnetBPrivate:
     Description: 'ID of second existing private subnet'
     Type: String
-    Default: 'subnet-869b1aba'
+    Default: 'subnet-xxx'
   SecurityGroup:
     Description: Select the main security group.
     Type: AWS::EC2::SecurityGroup::Id
