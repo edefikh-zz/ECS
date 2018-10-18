@@ -1,0 +1,189 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description:  'Creates Lambda fuction for Cluster's EC2 autoscaling.'
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'Cluster Parameters'
+      Parameters:
+      - Environment
+      - AppName
+      - ContainerMaxCPU
+      - ContainerMaxMemory
+Parameters:
+  ContainerMaxCPU:
+    Description: 'The maximum number of cpu reservation per container that you plan to run on this cluster. A container instance has 1,024 CPU units for every CPU core.'
+    Type: Number
+    Default: '128'
+  ContainerMaxMemory:
+    Description: 'The maximum number of memory reservation (in MB)  per container that you plan to run on this cluster.'
+    Type: Number
+    Default: '256'
+  Environment:
+    Description: 'Environment- prod, test etc.'
+    Type: String
+    Default: 'production'
+  AppName:
+    Description: 'Application name.'
+    Type: String
+    Default: 'app'
+Resources:
+  SchedulableContainersLambdaPermissionRule:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref SchedulableContainersLambda
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt 'SchedulableContainersRule.Arn'
+  SchedulableContainersLambdaPermissionCron:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref SchedulableContainersLambda
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt 'SchedulableContainersCron.Arn'
+  SchedulableContainersLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          'use strict';
+          const AWS = require('aws-sdk');
+          const ECS = new AWS.ECS({ apiVersion: '2014-11-13' });
+          const CloudWatch = new AWS.CloudWatch({ apiVersion: '2010-08-01' });
+          const containerMaxCPU = ${ContainerMaxCPU};
+          const containerMaxMemory = ${ContainerMaxMemory};
+          const cluster = '${AppName}-${Environment}';
+          const namespace = '${AWS::StackName}';
+
+          const list = (nextToken) => {
+            return ECS.listContainerInstances({
+              cluster,
+              maxResults: 1,
+              nextToken,
+              status: 'ACTIVE',
+            }).promise();
+          };
+
+          const describe = (containerInstanceArns) => {
+            return ECS.describeContainerInstances({
+              cluster,
+              containerInstances: containerInstanceArns,
+            }).promise();
+          };
+
+          const compute = (totalSchedulableContainers, nextToken) => {
+            return list(nextToken)
+              .then((list) => {
+                return describe(list.containerInstanceArns)
+                  .then((data) => {
+                    const localSchedulableContainers = data.containerInstances
+                      .map(instance => ({
+                        cpu: instance.remainingResources.find(resource => resource.name === 'CPU').integerValue,
+                        memory: instance.remainingResources.find(resource => resource.name === 'MEMORY').integerValue,
+                      }))
+                      .map(remaining => Math.min(Math.floor(remaining.cpu / containerMaxCPU), Math.floor(remaining.memory / containerMaxMemory)))
+                      .reduce((acc, containers) => acc + containers, 0);
+
+                    console.log(`localSchedulableContainers: ${!localSchedulableContainers}`);
+
+                    if (list.nextToken !== null && list.nextToken !== undefined) {
+                      return compute(localSchedulableContainers + totalSchedulableContainers, list.nextToken);
+                    }
+
+                    return localSchedulableContainers + totalSchedulableContainers;
+                  })
+                  .catch(err => console.error(err));
+              })
+              .catch(err => console.error(err));
+          };
+
+          exports.handler = (event, context, callback) => {
+            console.log(`Invoke: ${!JSON.stringify(event)}`);
+
+            compute(0, undefined)
+              .then((schedulableContainers) => {
+                console.log(`schedulableContainers: ${!schedulableContainers}`);
+
+                return CloudWatch.putMetricData({
+                  MetricData: [{
+                    MetricName: 'SchedulableContainers',
+                    Dimensions: [{
+                      Name: 'ClusterName',
+                      Value: cluster,
+                    }],
+                    Value: schedulableContainers,
+                    Unit: 'Count'
+                  }],
+                  Namespace: namespace,
+                }).promise();
+              })
+              .then(() => callback())
+              .catch(callback);
+          };
+      Handler: 'index.handler'
+      MemorySize: 128
+      Role: !GetAtt 'SchedulableContainersLambdaRole.Arn'
+      Runtime: 'nodejs6.10'
+      Timeout: 60
+      FunctionName: !Sub '${AppName}-${Environment}-lambda-ec2'
+  SchedulableContainersRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+        - 'aws.ecs'
+        'detail-type':
+        - 'ECS Container Instance State Change'
+      State: ENABLED
+      Targets:
+      - Arn: !GetAtt 'SchedulableContainersLambda.Arn'
+        Id: lambda
+  SchedulableContainersCron:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      ScheduleExpression: 'rate(1 minute)'
+      State: ENABLED
+      Targets:
+      - Arn: !GetAtt 'SchedulableContainersLambda.Arn'
+        Id: lambda
+  SchedulableContainersLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'lambda.amazonaws.com'
+          Action: 'sts:AssumeRole'
+      Policies:
+      - PolicyName: logs
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'logs:CreateLogGroup'
+            - 'logs:CreateLogStream'
+            - 'logs:PutLogEvents'
+            Resource: 'arn:aws:logs:*:*:*'
+      - PolicyName: ecs
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: 'ecs:ListContainerInstances'
+            Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${AppName}-${Environment}'
+          - Effect: Allow
+            Action: 'ecs:DescribeContainerInstances'
+            Resource: '*'
+            Condition:
+              ArnEquals:
+                'ecs:cluster': !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${AppName}-${Environment}'
+      - PolicyName: cloudwatch
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: 'cloudwatch:PutMetricData'
+            Resource: '*'
