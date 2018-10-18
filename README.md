@@ -6,3 +6,4 @@
 - RDFS database is setup for Postgress
 - includes LAMBDA function for setting autoscaling for ec2 instances on ECS cluster
 - Finally in the output you get ECS URL for management
+![Layout](web1.png)
