@@ -6,4 +6,6 @@
 - RDFS database is setup for Postgress
 - includes LAMBDA function for setting autoscaling for ec2 instances on ECS cluster
 - Finally in the output you get ECS URL for management
+
+- To deploy please import ECS.yml using AWS console / CloudFormation service. Upon completion a working stack described below will spin up automatically.
 ![Layout](web1.png)
