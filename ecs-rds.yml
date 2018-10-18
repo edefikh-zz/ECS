@@ -1,0 +1,143 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description:  Create RDS database
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: 'RDS Parameters'
+      Parameters:
+      - DataBaseInstanceType
+      - DataBaseName
+      - DataBaseUser
+      - DataBasePassword
+    - Label:
+        default: 'Cluster Parameters'
+      Parameters:
+      - Environment
+      - AppName
+    - Label:
+        default: 'Existing VPCs parameters'
+      Parameters:
+        - VPCID
+        - SubnetAPrivate
+        - SubnetBPrivate
+Parameters:
+  DataBaseInstanceType:
+    Description: 'The instance type of the Data base instances.'
+    Type: String
+    Default: 'db.t2.micro'  #'db.t2.medium'
+    AllowedValues: [db.t1.micro, db.m1.small, db.m1.medium, db.m1.large, db.m1.xlarge,
+      db.m2.xlarge, db.m2.2xlarge, db.m2.4xlarge, db.m3.medium, db.m3.large, db.m3.xlarge,
+      db.m3.2xlarge, db.m4.large, db.m4.xlarge, db.m4.2xlarge, db.m4.4xlarge, db.m4.10xlarge,
+      db.r3.large, db.r3.xlarge, db.r3.2xlarge, db.r3.4xlarge, db.r3.8xlarge, db.m2.xlarge,
+      db.m2.2xlarge, db.m2.4xlarge, db.cr1.8xlarge, db.t2.micro, db.t2.small, db.t2.medium,
+      db.t2.large]
+  DataBaseName:
+    Description: 'The Data base name. If let it empty - name will be {env}_{app}_master'
+    Type: String
+    Default: ''
+  DataBaseUser:
+    Description: 'The Data base username. If let it empty - username will be {env}_{app}_master_user'
+    Type: String
+    Default: ''
+  DataBasePassword:
+    Description: 'The DataBasePassword.'
+    Type: String
+    Default: ''
+  Environment:
+    Description: 'Environment- prod, test etc.'
+    Type: String
+    Default: production
+  AppName:
+    Description: 'Aplication name.'
+    Type: String
+    Default: 'profile'
+  VPCID:
+    Description: 'ID of existing VPC'
+    Type: String
+    Default: 'vpc-99dcb6fd'
+  SubnetAPrivate:
+    Description: 'ID of first existing private subnet'
+    Type: String
+    Default: 'subnet-21d40e57'
+  SubnetBPrivate:
+    Description: 'ID of second existing private subnet'
+    Type: String
+    Default: 'subnet-869b1aba'
+  SecurityGroup:
+    Description: Select the main security group.
+    Type: AWS::EC2::SecurityGroup::Id
+Conditions:
+    HasDBUser: !Not [!Equals [!Ref DataBaseUser, '']]
+    HasDBName: !Not [!Equals [!Ref DataBaseName, '']]
+Resources:
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'true'
+      DBInstanceClass:
+        Ref: DataBaseInstanceType
+      DBInstanceIdentifier: !If
+      - HasDBName
+      - !Sub '${DataBaseName}'
+      - !Sub '${Environment}-${AppName}-master'
+      Port: '5432'
+      StorageType: gp2
+      BackupRetentionPeriod: '7'
+      MasterUsername: !If
+      - HasDBUser
+      - !Sub '${DataBaseUser}'
+      - !Sub '${Environment}_${AppName}_master_user'
+      MasterUserPassword:
+        Ref: DataBasePassword
+      PreferredBackupWindow: 20:00-20:30
+      PreferredMaintenanceWindow: mon:06:53-mon:07:23
+      DBName: !If
+      - HasDBName
+      - !Sub '${DataBaseName}'
+      - !Sub '${Environment}_${AppName}_master'
+      Engine: postgres
+      EngineVersion: 9.6.2
+      LicenseModel: postgresql-license
+      MultiAZ: 'true'
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      VPCSecurityGroups:
+      - Ref: SGPostgresRds
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS Instances are restricted to the private subnets
+      SubnetIds:
+        - !Sub '${SubnetAPrivate}'
+        - !Sub '${SubnetBPrivate}'
+  SGPostgresRds:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Limit connections to postgres db to port 5432
+      VpcId: !Ref VPCID
+      GroupName: !Sub '${AppName}-${Environment}-RDS-SG'
+      Tags:
+      - Key: Name
+        Value: !Sub '${AppName}-${Environment}-RDS-SG'
+  ingressSGP1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId:
+        Ref: SGPostgresRds
+      IpProtocol: tcp
+      FromPort: '5432'
+      ToPort: '5432'
+      SourceSecurityGroupId:
+        Ref: SecurityGroup
+  egressSGP1:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Ref: SGPostgresRds
+      IpProtocol: "-1"
+      CidrIp: 0.0.0.0/0
